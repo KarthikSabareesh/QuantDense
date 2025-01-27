@@ -1,13 +1,12 @@
 #include "DataPort.hpp"
 #include <stdlib.h>
 #include <cstdlib>
-#include <cstdio>
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <cstdint>
 #include <algorithm>
-#include <stdexcept>
+#include <chrono>
 
 struct flatten_args {
     float axis;
@@ -247,7 +246,10 @@ void ee_Gemm(NumPyArray* A, NumPyArray* B, NumPyArray* bias, NumPyArray* C, gemm
                 int indexB = getIndex(k, j, BB->shape[2], BB->shape[3], args.transB);
 
                 int a_val = static_cast<int>(AA->data[indexA] - zero_point_A);
-                int b_val = static_cast<int>(BB->data[indexB] - zero_point_B);               
+                int b_val = static_cast<int>(BB->data[indexB] - zero_point_B);
+
+                // std::cout << "A val : " << a_val << std::endl;
+                // std::cout << "B val : " << b_val << std::endl;               
 
                 sum += args.alpha * a_val * b_val; 
                 
@@ -262,8 +264,9 @@ void ee_Gemm(NumPyArray* A, NumPyArray* B, NumPyArray* bias, NumPyArray* C, gemm
             // sum = MultiplyByQuantizedMultiplier(sum,quantized_multiplier,right_shift);
             sum = sum * real_multiplier;
             sum += static_cast<int>(zero_point_C);
+            C->data[i * N + j] = sum + args.beta * CC->data[i * N + j];
             // std::cout << "After Quant Mul Sum : " << sum << std::endl;
-            CC->data[i * N + j] = static_cast<int8_t>(sum + (args.beta * CC->data[i * N + j]));
+            // CC->data[i * N + j] = static_cast<int8_t>(sum + (args.beta * CC->data[i * N + j]));
             // std::cout << "Final Value : " << static_cast<int>(CC[i * N + j]) << std::endl;
 //            printf("\nsum %d @ %d\n", sum, i * N + j);
 //            printf("\n\\sum %d @ %d\n", C->data[i * N + j], i * N + j);
@@ -275,7 +278,7 @@ void ee_Gemm(NumPyArray* A, NumPyArray* B, NumPyArray* bias, NumPyArray* C, gemm
         }
     }
 
-    Dequantize(scale_C,zero_point_C,CC,C);
+    // Dequantize(scale_C,zero_point_C,CC,C);
 }
 
 void Gemm(DataPort *input0, DataPort *input1, DataPort *input2, DataPort *output0, gemm_args args) {
@@ -674,8 +677,12 @@ int main() {
     void *inputs = {
         &input_data
     };
+    auto start = std::chrono::high_resolution_clock::now();
     infer(&inputs);
-    
+    auto end = std::chrono::high_resolution_clock::now();
+    // Calculate duration in milliseconds
+    std::chrono::duration<double, std::milli> duration = end - start;
+    std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
     int amax = argmax1D(output.data);
     printf("%d\n", amax);
 #else
