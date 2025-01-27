@@ -246,8 +246,8 @@ void ee_Gemm(NumPyArray* A, NumPyArray* B, NumPyArray* bias, NumPyArray* C, gemm
                 int indexA = getIndex(i, k, AA->shape[2], AA->shape[3], args.transA);
                 int indexB = getIndex(k, j, BB->shape[2], BB->shape[3], args.transB);
 
-                int a_val = static_cast<int>(AA->data[indexA] + zero_point_A);
-                int b_val = static_cast<int>(BB->data[indexB] + zero_point_B);               
+                int a_val = static_cast<int>(AA->data[indexA] - zero_point_A);
+                int b_val = static_cast<int>(BB->data[indexB] - zero_point_B);               
 
                 sum += args.alpha * a_val * b_val; 
                 
@@ -261,7 +261,7 @@ void ee_Gemm(NumPyArray* A, NumPyArray* B, NumPyArray* bias, NumPyArray* C, gemm
             // std::cout << "After Bias Sum : " << sum << std::endl;
             // sum = MultiplyByQuantizedMultiplier(sum,quantized_multiplier,right_shift);
             sum = sum * real_multiplier;
-            sum -= static_cast<int>(zero_point_C);
+            sum += static_cast<int>(zero_point_C);
             // std::cout << "After Quant Mul Sum : " << sum << std::endl;
             CC->data[i * N + j] = static_cast<int8_t>(sum + (args.beta * CC->data[i * N + j]));
             // std::cout << "Final Value : " << static_cast<int>(CC[i * N + j]) << std::endl;
